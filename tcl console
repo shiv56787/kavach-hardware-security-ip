@@ -1,0 +1,49 @@
+============================================
+   KAVACH IP v3.0 - DIRECT TEST
+============================================
+[T1] Baseline Learning...
+xsim: Time (s): cpu = 00:00:06 ; elapsed = 00:00:10 . Memory (MB): peak = 3772.445 ; gain = 0.000
+INFO: [USF-XSim-96] XSim completed. Design snapshot 'kavach_tb_behav' loaded.
+INFO: [USF-XSim-97] XSim simulation ran for 1000ns
+launch_simulation: Time (s): cpu = 00:00:07 ; elapsed = 00:00:27 . Memory (MB): peak = 3772.445 ; gain = 0.000
+run 5000us
+[MONITOR] @2265000 ns | ThreatLevel 0->1 | Type=6 | Score=33
+[MONITOR] @2805000 ns | ThreatLevel 1->2 | Type=6 | Score=80
+[MONITOR] @3655000 ns | ThreatLevel 2->0 | Type=1 | Score=30
+[MONITOR] @3665000 ns | ThreatLevel 0->1 | Type=1 | Score=30
+[MONITOR] @4235000 ns | ThreatLevel 1->0 | Type=0 | Score=0
+[T1] Done | Ready=0 | ThreatLvl=0
+[T2] Power Glitch Attack...
+[MONITOR] @12885000 ns | ThreatLevel 0->1 | Type=1 | Score=20
+[T2] ThreatLvl=1 | Alert=0 | Score=30
+[T3] Thermal Attack...
+[MONITOR] @15615000 ns | ThreatLevel 1->0 | Type=1 | Score=53
+[MONITOR] @15625000 ns | ThreatLevel 0->1 | Type=1 | Score=53
+[MONITOR] @16685000 ns | ThreatLevel 1->2 | Type=6 | Score=63
+[MONITOR] @17255000 ns | ThreatLevel 2->0 | Type=1 | Score=43
+[MONITOR] @17265000 ns | ThreatLevel 0->1 | Type=1 | Score=43
+[MONITOR] @17595000 ns | ThreatLevel 1->0 | Type=3 | Score=13
+[T3] ThreatLvl=0 | Alert=0 | Score=0
+[T4] Fault Injection...
+[T4] ThreatLvl=0 | Debug_dis=0 | Score=13
+[T5] Combined Attack - All Domains...
+[MONITOR] @22675000 ns | ThreatLevel 0->1 | Type=1 | Score=20
+[MONITOR] @23275000 ns | ThreatLevel 1->2 | Type=6 | Score=70
+[MONITOR] @25265000 ns | ThreatLevel 2->0 | Type=4 | Score=52
+[MONITOR] @25275000 ns | ThreatLevel 0->1 | Type=4 | Score=52
+[T5] ThreatLvl=1 | MultiDom=0 | Alert=0 | Score=52
+[T6] Recovery...
+[MONITOR] @27965000 ns | ThreatLevel 1->0 | Type=6 | Score=80
+[MONITOR] @27975000 ns | ThreatLevel 0->2 | Type=6 | Score=80
+[MONITOR] @29785000 ns | ThreatLevel 2->0 | Type=1 | Score=30
+[MONITOR] @29795000 ns | ThreatLevel 0->1 | Type=1 | Score=30
+[MONITOR] @30305000 ns | ThreatLevel 1->0 | Type=0 | Score=0
+[T6] RecovState=0 | Done=0 | PermLock=0
+[T7] Forensic Read...
+[T7] Slot0 | Level=1 | Type=6 | Score=50 | PC=0x00001084
+============================================
+   KAVACH IP - SIMULATION COMPLETE
+   Ready=1 | ThreatLvl=0 | Alert=0
+   Lockdown=0 | PermLock=0
+============================================
+$finish called at time : 34655 ns : File "C:/Users/WIN10/KAVACH_IP_1.0/KAVACH_IP_1.0.srcs/sim_1/new/kavach_tb.v" Line 350
