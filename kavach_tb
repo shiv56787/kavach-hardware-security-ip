@@ -1,0 +1,363 @@
+// ============================================================
+// KAVACH IP - Testbench v3.0
+// NO wait(kavach_ready) - Direct Attack Testing
+// ============================================================
+
+`timescale 1ns / 1ps
+
+module kavach_tb;
+
+    parameter ADC_W      = 12;
+    parameter PC_W       = 32;
+    parameter SCORE_W    = 8;
+    parameter AT_W       = 4;
+    parameter NMOD       = 8;
+    parameter CLK_PERIOD = 10;
+
+// ============================================================
+// Signals
+// ============================================================
+
+    reg                clk, rst_n;
+    reg  [ADC_W-1:0]  vdd_sample, idd_sample;
+    reg                pwr_sample_valid;
+    reg                mon_clk;
+    reg                ref_pulse, ref_valid;
+    reg  [ADC_W-1:0]  temp_sample;
+    reg                temp_sample_valid;
+    reg  [PC_W-1:0]   pc_current, pc_prev;
+    reg                instr_retired, instr_flushed;
+    reg  [1:0]         priv_level;
+    reg                mem_access;
+    reg  [PC_W-1:0]   mem_addr;
+    reg                mem_write;
+    reg                exception_taken, nmi_taken;
+    reg                integ_check_done, integ_check_pass;
+    reg  [NMOD-1:0]   module_restore_ack;
+    reg                sys_stable;
+    reg  [2:0]         forensic_read_slot;
+    reg                forensic_read_req, forensic_read_ack;
+    reg  [NMOD-1:0]   module_isolate_mask;
+    reg                override_enable;
+    reg  [2:0]         override_level;
+    reg  [PC_W-1:0]   valid_pc_base, valid_pc_top;
+    reg                use_pc_bounds;
+
+    wire               alert_irq, alert_gpio;
+    wire               clk_throttle_en;
+    wire [3:0]         clk_div_factor;
+    wire [NMOD-1:0]   module_isolate;
+    wire               bus_isolate, dma_halt;
+    wire               sys_lockdown, crypto_zeroize;
+    wire               puf_lock, debug_disable;
+    wire               integ_check_req;
+    wire               clk_restore;
+    wire [3:0]         clk_div_recover;
+    wire [NMOD-1:0]   module_restore;
+    wire               bus_restore, dma_restore;
+    wire [47:0]        forensic_timestamp;
+    wire [2:0]         forensic_threat_level;
+    wire [AT_W-1:0]   forensic_attack_type;
+    wire [SCORE_W-1:0] forensic_score;
+    wire [PC_W-1:0]   forensic_pc;
+    wire               forensic_read_valid;
+    wire [2:0]         threat_level;
+    wire [AT_W-1:0]   attack_type;
+    wire [SCORE_W-1:0] threat_score;
+    wire [1:0]         fused_severity;
+    wire               multi_domain_alert, correlated_attack;
+    wire [3:0]         recovery_state;
+    wire               recovery_done, recovery_failed;
+    wire               permanent_lockdown, kavach_ready;
+
+// ============================================================
+// DUT
+// ============================================================
+
+    kavach_top #(
+        .VOLT_THRESH     (12'd80),
+        .CURR_THRESH     (12'd60),
+        .TEMP_HI_THRESH  (12'd60),
+        .TEMP_LO_THRESH  (12'd50),
+        .ROC_THRESH      (12'd20),
+        .IPC_THRESH      (16'd20),
+        .PC_JUMP_THRESH  (32'h0000_0800),
+        .STEP_HOLD_CYCLES(32'd10),
+        .MAX_RETRY       (3'd2)
+    ) dut (
+        .clk(clk), .rst_n(rst_n),
+        .vdd_sample(vdd_sample), .idd_sample(idd_sample),
+        .pwr_sample_valid(pwr_sample_valid),
+        .mon_clk(mon_clk), .ref_pulse(ref_pulse), .ref_valid(ref_valid),
+        .temp_sample(temp_sample), .temp_sample_valid(temp_sample_valid),
+        .pc_current(pc_current), .pc_prev(pc_prev),
+        .instr_retired(instr_retired), .instr_flushed(instr_flushed),
+        .priv_level(priv_level), .mem_access(mem_access),
+        .mem_addr(mem_addr), .mem_write(mem_write),
+        .exception_taken(exception_taken), .nmi_taken(nmi_taken),
+        .integ_check_done(integ_check_done),
+        .integ_check_pass(integ_check_pass),
+        .module_restore_ack(module_restore_ack),
+        .sys_stable(sys_stable),
+        .forensic_read_slot(forensic_read_slot),
+        .forensic_read_req(forensic_read_req),
+        .forensic_read_ack(forensic_read_ack),
+        .module_isolate_mask(module_isolate_mask),
+        .override_enable(override_enable),
+        .override_level(override_level),
+        .valid_pc_base(valid_pc_base),
+        .valid_pc_top(valid_pc_top),
+        .use_pc_bounds(use_pc_bounds),
+        .alert_irq(alert_irq), .alert_gpio(alert_gpio),
+        .clk_throttle_en(clk_throttle_en),
+        .clk_div_factor(clk_div_factor),
+        .module_isolate(module_isolate),
+        .bus_isolate(bus_isolate), .dma_halt(dma_halt),
+        .sys_lockdown(sys_lockdown),
+        .crypto_zeroize(crypto_zeroize),
+        .puf_lock(puf_lock), .debug_disable(debug_disable),
+        .integ_check_req(integ_check_req),
+        .clk_restore(clk_restore),
+        .clk_div_recover(clk_div_recover),
+        .module_restore(module_restore),
+        .bus_restore(bus_restore), .dma_restore(dma_restore),
+        .forensic_timestamp(forensic_timestamp),
+        .forensic_threat_level(forensic_threat_level),
+        .forensic_attack_type(forensic_attack_type),
+        .forensic_score(forensic_score),
+        .forensic_pc(forensic_pc),
+        .forensic_read_valid(forensic_read_valid),
+        .threat_level(threat_level),
+        .attack_type(attack_type),
+        .threat_score(threat_score),
+        .fused_severity(fused_severity),
+        .multi_domain_alert(multi_domain_alert),
+        .correlated_attack(correlated_attack),
+        .recovery_state(recovery_state),
+        .recovery_done(recovery_done),
+        .recovery_failed(recovery_failed),
+        .permanent_lockdown(permanent_lockdown),
+        .kavach_ready(kavach_ready)
+    );
+
+// ============================================================
+// Clocks
+// ============================================================
+
+    initial clk     = 0;
+    always #(CLK_PERIOD/2) clk = ~clk;
+    initial mon_clk = 0;
+    always #(CLK_PERIOD)   mon_clk = ~mon_clk;
+
+// ============================================================
+// Tasks
+// ============================================================
+
+    task send_pwr;
+        input [ADC_W-1:0] v, i;
+        begin
+            @(posedge clk);
+            vdd_sample = v; idd_sample = i;
+            pwr_sample_valid = 1;
+            @(posedge clk);
+            pwr_sample_valid = 0;
+        end
+    endtask
+
+    task send_tmp;
+        input [ADC_W-1:0] t;
+        begin
+            @(posedge clk);
+            temp_sample = t;
+            temp_sample_valid = 1;
+            @(posedge clk);
+            temp_sample_valid = 0;
+        end
+    endtask
+
+    task wc; // wait cycles
+        input integer n;
+        integer k;
+        begin
+            for(k=0;k<n;k=k+1) @(posedge clk);
+        end
+    endtask
+
+    task normal_samples;
+        input integer n;
+        integer k;
+        begin
+            for(k=0;k<n;k=k+1) begin
+                send_pwr(12'd2048, 12'd1024);
+                send_tmp(12'd1500);
+                pc_prev    = pc_current;
+                pc_current = pc_current + 4;
+                instr_retired = 1; @(posedge clk);
+                instr_retired = 0; @(posedge clk);
+            end
+        end
+    endtask
+
+// ============================================================
+// Threat Monitor
+// ============================================================
+
+    reg [2:0] tl_prev;
+    initial tl_prev = 0;
+    always @(posedge clk) begin
+        if (threat_level !== tl_prev) begin
+            $display("[MONITOR] @%0t ns | ThreatLevel %0d->%0d | Type=%0d | Score=%0d",
+                $time, tl_prev, threat_level, attack_type, threat_score);
+            tl_prev <= threat_level;
+        end
+    end
+
+// ============================================================
+// MAIN
+// ============================================================
+
+    integer i;
+
+    initial begin
+        // Init
+        rst_n=0; vdd_sample=2048; idd_sample=1024;
+        pwr_sample_valid=0; temp_sample=1500;
+        temp_sample_valid=0; pc_current=32'h1000;
+        pc_prev=32'h0FFC; instr_retired=0;
+        instr_flushed=0; priv_level=0;
+        mem_access=0; mem_addr=0; mem_write=0;
+        exception_taken=0; nmi_taken=0;
+        integ_check_done=0; integ_check_pass=0;
+        module_restore_ack=0; sys_stable=1;
+        forensic_read_slot=0; forensic_read_req=0;
+        forensic_read_ack=0;
+        module_isolate_mask=8'hFF;
+        override_enable=0; override_level=0;
+        valid_pc_base=0; valid_pc_top=32'h0000_FFFF;
+        use_pc_bounds=1; ref_pulse=0; ref_valid=0;
+
+        // Reset
+        wc(20); rst_n=1; wc(10);
+
+        $display("============================================");
+        $display("   KAVACH IP v3.0 - DIRECT TEST");
+        $display("============================================");
+
+        // ── BASELINE (200 samples - NO wait) ──────────────
+        $display("[T1] Baseline Learning...");
+        normal_samples(200);
+        wc(50);
+        $display("[T1] Done | Ready=%b | ThreatLvl=%0d",
+                  kavach_ready, threat_level);
+
+        // ── POWER GLITCH ──────────────────────────────────
+        $display("[T2] Power Glitch Attack...");
+        for(i=0;i<40;i=i+1) begin
+            send_pwr(12'd2048+12'd500, 12'd1024+12'd400);
+            send_tmp(12'd1500);
+        end
+        wc(100);
+        $display("[T2] ThreatLvl=%0d | Alert=%b | Score=%0d",
+                  threat_level, alert_irq, threat_score);
+
+        // ── THERMAL ATTACK ────────────────────────────────
+        $display("[T3] Thermal Attack...");
+        normal_samples(20);
+        for(i=0;i<40;i=i+1) begin
+            send_tmp(12'd1500+12'd400);
+            send_pwr(12'd2048, 12'd1024);
+        end
+        wc(100);
+        $display("[T3] ThreatLvl=%0d | Alert=%b | Score=%0d",
+                  threat_level, alert_irq, threat_score);
+
+        // ── FAULT INJECTION ───────────────────────────────
+        $display("[T4] Fault Injection...");
+        normal_samples(20);
+        for(i=0;i<15;i=i+1) begin
+            pc_prev    = pc_current;
+            pc_current = 32'hDEAD_0000 + i;
+            instr_retired=1; @(posedge clk);
+            instr_retired=0;
+            send_pwr(12'd2048, 12'd1024);
+        end
+        priv_level=2'b11; exception_taken=0;
+        wc(50);
+        $display("[T4] ThreatLvl=%0d | Debug_dis=%b | Score=%0d",
+                  threat_level, debug_disable, threat_score);
+
+        // ── COMBINED ATTACK ───────────────────────────────
+        $display("[T5] Combined Attack - All Domains...");
+        priv_level=0;
+        pc_current=32'h0000_3000; pc_prev=32'h0000_2FFC;
+        normal_samples(20);
+        for(i=0;i<40;i=i+1) begin
+            send_pwr(12'd2048+12'd500, 12'd1024+12'd400);
+            send_tmp(12'd1500+12'd400);
+            pc_prev=pc_current; pc_current=32'hFFFF_0000;
+            instr_retired=1; @(posedge clk); instr_retired=0;
+            nmi_taken=1; @(posedge clk); nmi_taken=0;
+            instr_flushed=1; @(posedge clk); instr_flushed=0;
+            @(posedge clk);
+        end
+        priv_level=2'b11;
+        wc(200);
+        $display("[T5] ThreatLvl=%0d | MultiDom=%b | Alert=%b | Score=%0d",
+                  threat_level, multi_domain_alert, alert_irq, threat_score);
+
+        // ── RECOVERY ──────────────────────────────────────
+        $display("[T6] Recovery...");
+        priv_level=0; nmi_taken=0; instr_flushed=0;
+        pc_current=32'h0000_4000; pc_prev=32'h0000_3FFC;
+        normal_samples(50);
+        if(integ_check_req) begin
+            wc(5);
+            integ_check_done=1; integ_check_pass=1;
+            @(posedge clk);
+            integ_check_done=0; integ_check_pass=0;
+        end
+        module_restore_ack=8'hFF; wc(20);
+        module_restore_ack=0;
+        sys_stable=1; wc(300);
+        $display("[T6] RecovState=%0d | Done=%b | PermLock=%b",
+                  recovery_state, recovery_done, permanent_lockdown);
+
+        // ── FORENSIC READ ─────────────────────────────────
+        $display("[T7] Forensic Read...");
+        forensic_read_slot=0;
+        forensic_read_req=1; wc(5);
+        forensic_read_req=0; wc(5);
+        if(forensic_read_valid) begin
+            $display("[T7] Slot0 | Level=%0d | Type=%0d | Score=%0d | PC=0x%08X",
+                      forensic_threat_level, forensic_attack_type,
+                      forensic_score, forensic_pc);
+            forensic_read_ack=1; @(posedge clk);
+            forensic_read_ack=0;
+        end else
+            $display("[T7] Forensic empty");
+
+        wc(50);
+
+        // ── FINAL REPORT ──────────────────────────────────
+        $display("============================================");
+        $display("   KAVACH IP - SIMULATION COMPLETE");
+        $display("   Ready=%b | ThreatLvl=%0d | Alert=%b",
+                  kavach_ready, threat_level, alert_irq);
+        $display("   Lockdown=%b | PermLock=%b",
+                  sys_lockdown, permanent_lockdown);
+        $display("============================================");
+
+        #100; $finish;
+    end
+
+    // Timeout
+    initial begin
+        #20_000_000;
+        $display("[TIMEOUT] 20ms");
+        $finish;
+    end
+
+endmodule
+// ============================================================
+// END: kavach_tb.v v3.0
+// ============================================================
