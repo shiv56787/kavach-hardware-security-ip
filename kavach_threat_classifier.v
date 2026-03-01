@@ -420,8 +420,4 @@ module kavach_threat_classifier #(
 
 endmodule
 
-// ============================================================
-// END OF FILE: kavach_threat_classifier.v
-// KAVACH IP - Module 6 of 10
-// Next: kavach_response_controller.v (Module 7)
-// ============================================================
+
