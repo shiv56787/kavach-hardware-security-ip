@@ -401,8 +401,4 @@ module kavach_ewma_engine #(
 
 endmodule
 
-// ============================================================
-// END OF FILE: kavach_ewma_engine.v
-// KAVACH IP - Module 5 of 10
-// Next: kavach_threat_classifier.v (Module 6)
-// ============================================================
+
